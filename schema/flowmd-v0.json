@@ -1,0 +1,373 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flowmd.org/schemas/v0.1/recipe.json",
+  "title": "FlowMD Recipe",
+  "description": "Schema for FlowMD v0.1 parsed recipe format",
+  "type": "object",
+  "required": ["type", "version", "raw"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "const": "flowmd",
+      "description": "Document type identifier"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^0\\.1(\\.\\d+)?$",
+      "description": "FlowMD version number"
+    },
+    "title": {
+      "type": ["string", "null"],
+      "description": "Recipe title extracted from first H1 heading"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Metadata block with normalized values",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["raw"],
+        "properties": {
+          "raw": {
+            "type": "string",
+            "description": "Original metadata value as written"
+          },
+          "minutes": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Normalized duration in minutes (for time fields)"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Normalized serving count (for servings field)"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low", "none"],
+            "description": "Confidence level of normalization"
+          }
+        }
+      },
+      "properties": {
+        "prepTime": {
+          "type": "object",
+          "description": "Preparation time"
+        },
+        "cookTime": {
+          "type": "object",
+          "description": "Cooking time"
+        },
+        "totalTime": {
+          "type": "object",
+          "description": "Total time (optional)"
+        },
+        "servings": {
+          "type": "object",
+          "description": "Number of servings"
+        },
+        "cost": {
+          "type": "object",
+          "description": "Recipe cost estimate"
+        },
+        "author": {
+          "type": "object",
+          "description": "Recipe author"
+        }
+      }
+    },
+    "ingredients": {
+      "type": "array",
+      "description": "List of ingredients from ## Ingredients section",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "quantity", "notes", "normalized"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for this ingredient"
+          },
+          "name": {
+            "type": "string",
+            "description": "Ingredient name"
+          },
+          "quantity": {
+            "type": ["string", "null"],
+            "description": "Raw quantity string as written"
+          },
+          "notes": {
+            "type": ["string", "null"],
+            "description": "Optional notes in parentheses"
+          },
+          "normalized": {
+            "type": "object",
+            "description": "Normalized quantity data",
+            "required": ["confidence", "scalable"],
+            "properties": {
+              "amount": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Numeric amount (Tier 1 & 2 only)"
+              },
+              "unit": {
+                "type": "string",
+                "description": "Normalized unit (Tier 1 & 2 only)"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": ["high", "medium", "low", "none"],
+                "description": "Confidence level of normalization"
+              },
+              "scalable": {
+                "type": ["boolean", "string"],
+                "description": "Whether this quantity can be scaled (boolean or 'approximate')"
+              },
+              "discrete": {
+                "type": "boolean",
+                "description": "Whether this is a discrete item (eggs, cloves, etc.)"
+              },
+              "warning": {
+                "type": "string",
+                "description": "Warning message for scaling edge cases"
+              },
+              "size": {
+                "type": "string",
+                "enum": ["small", "medium", "large", "extra large"],
+                "description": "Size qualifier for items"
+              },
+              "raw": {
+                "type": "string",
+                "description": "Raw quantity for Tier 3 freeform items"
+              },
+              "reason": {
+                "type": "string",
+                "description": "Reason why quantity cannot be normalized (Tier 3)"
+              }
+            },
+            "oneOf": [
+              {
+                "description": "Tier 1 or 2: Normalized scalable quantity",
+                "required": ["amount", "unit"],
+                "properties": {
+                  "scalable": { 
+                    "type": ["boolean", "string"],
+                    "enum": [true, "approximate"]
+                  }
+                }
+              },
+              {
+                "description": "Tier 3: Freeform non-scalable quantity",
+                "properties": {
+                  "scalable": { "const": false },
+                  "reason": { "type": "string" }
+                }
+              }
+            ]
+          },
+          "scaledQuantity": {
+            "type": "string",
+            "description": "Human-readable scaled quantity (only present after scaling)"
+          },
+          "scaledNormalized": {
+            "type": "object",
+            "description": "Normalized data for scaled amount (only present after scaling)"
+          }
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "description": "List of numbered steps",
+      "items": {
+        "type": "object",
+        "required": ["id", "order", "text"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^step-\\d+$",
+            "description": "Step identifier"
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Step number (1-indexed)"
+          },
+          "text": {
+            "type": "string",
+            "description": "Full step text"
+          },
+          "timing": {
+            "type": "object",
+            "description": "Extracted timing information",
+            "required": ["raw", "type", "confidence"],
+            "properties": {
+              "raw": {
+                "type": "string",
+                "description": "Raw timing string from [brackets]"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["exact", "range", "minimum", "alternatives", "vague"],
+                "description": "Type of timing specification"
+              },
+              "confidence": {
+                "type": "string",
+                "enum": ["high", "medium", "low", "none"],
+                "description": "Confidence level of timing extraction"
+              },
+              "minutes": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Exact duration in minutes (type: exact)"
+              },
+              "min": {
+                "type": ["number", "null"],
+                "minimum": 0,
+                "description": "Minimum duration in minutes (type: range, minimum)"
+              },
+              "max": {
+                "type": ["number", "null"],
+                "minimum": 0,
+                "description": "Maximum duration in minutes (type: range)"
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": { "type": { "const": "exact" } }
+                },
+                "then": {
+                  "required": ["minutes"]
+                }
+              },
+              {
+                "if": {
+                  "properties": { "type": { "const": "range" } }
+                },
+                "then": {
+                  "required": ["min", "max"]
+                }
+              },
+              {
+                "if": {
+                  "properties": { "type": { "const": "minimum" } }
+                },
+                "then": {
+                  "required": ["min"]
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "conditionals": {
+      "type": "array",
+      "description": "List of conditional lines",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "condition", "action", "raw"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^cond-\\d+$",
+            "description": "Conditional identifier"
+          },
+          "type": {
+            "type": "string",
+            "description": "Type of conditional (ingredient, step, diet, or unknown)"
+          },
+          "condition": {
+            "type": "string",
+            "description": "The condition part (before ->)"
+          },
+          "action": {
+            "type": "string",
+            "description": "The action part (after ->)"
+          },
+          "raw": {
+            "type": "string",
+            "description": "Full raw conditional line"
+          }
+        }
+      }
+    },
+    "raw": {
+      "type": "object",
+      "required": ["markdown"],
+      "description": "Raw source data",
+      "properties": {
+        "markdown": {
+          "type": "string",
+          "description": "Original Markdown source text"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "scalingResult": {
+      "type": "object",
+      "description": "Result of scaling a recipe",
+      "required": ["success"],
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Whether scaling succeeded"
+        },
+        "factor": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Scaling factor applied"
+        },
+        "baseServings": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Original serving count"
+        },
+        "targetServings": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Target serving count"
+        },
+        "warnings": {
+          "type": "array",
+          "description": "List of warnings generated during scaling",
+          "items": {
+            "type": "object",
+            "required": ["ingredient", "reason", "original"],
+            "properties": {
+              "ingredient": {
+                "type": "string",
+                "description": "Name of ingredient that caused warning"
+              },
+              "reason": {
+                "type": "string",
+                "description": "Explanation of the warning"
+              },
+              "original": {
+                "type": ["string", "null"],
+                "description": "Original quantity string"
+              }
+            }
+          }
+        },
+        "scaled": {
+          "description": "Scaled recipe object (same schema as root)",
+          "$ref": "#"
+        },
+        "error": {
+          "type": "string",
+          "description": "Error message if scaling failed"
+        }
+      },
+      "if": {
+        "properties": { "success": { "const": true } }
+      },
+      "then": {
+        "required": ["factor", "baseServings", "targetServings", "warnings", "scaled"]
+      },
+      "else": {
+        "required": ["error"]
+      }
+    }
+  }
+}
